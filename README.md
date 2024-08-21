@@ -1,26 +1,33 @@
-# sold linker
+# mold-ld64 linker for macOS
 
-_sold_ is a fork of [mold](https://github.com/rui314/mold) that supports
-not only Linux but also macOS/iOS. Originally, _sold_ was available under
-a commercial license. Now, it has been relicensed under the MIT license.
+_mold-ld64_ is a re-named fork of
+[sold](https://github.com/bluewhalesystems/sold), which is in turn an
+outdated fork of [mold](https://github.com/rui314/mold).  After it was
+relicenced under MIT licence, _sold_ didn't receive much updates and was
+basically
+[abandoned](https://github.com/bluewhalesystems/sold/issues/43).
+
+In macOS linker land not much choice is available.  Admittedly, Apple
+ships a functional linker with Xcode Tools, but updating the linker on
+older macOS versions, e.g. by building _lld_ requires a fair amount of
+LLVM foo.  Apple's _cctools_ and _ld64_ projects are abandoned, projects
+like [xtools](https://github.com/iains/darwin-xtools) are functional,
+but basically old linkers, not really suitable (e.g. no support for M1).
+Because there is a need for (non-LLVM) macOS linkers, _mold-ld64_ is
+there to use with GCC and allow using a self-built up-to-date linker.
 
 ## How to build
 
-The build instruction for sold is the same as for mold except that you check
-out `https://github.com/bluewhalesystems/sold.git` instead of
-`https://github.com/rui314/mold.git`. For the details, please see
-https://github.com/rui314/mold#how-to-build.
+```
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=c++ -B build
+cmake --build build -j <cpus>
+```
 
 ## How to use
 
-sold is installed under several different executable names as follows:
+You need to configure your compiler to use _mold-ld64_.  This likely
+happens via PATH, but can also happen whilst configuring the compiler.
+This is up to you.
 
-1. `ld.sold`: GNU ld-compatible linker for Linux and other ELF-based systems.
-   The instructions to use sold on Linux is the same as the mold linker.
-   For the details, see the [mold's README](https://github.com/rui314/mold).
-
-2. `ld64.sold`: Apple's ld-compatible mode for macOS/iOS. You can use the
-   linker on macOS by adding `--ld-path=path/to/ld64.sold` to the linker flags.
-
-3. `ld.mold` and `ld64.mold`: They are just aliases for `ld.sold` and
-   `ld64.sold`, respectively.
+Within Gentoo Prefix it is used behind a
+[wrapper](https://gitweb.gentoo.org/repo/proj/prefix.git/tree/sys-devel/binutils-config/files/ldwrapper.c).
