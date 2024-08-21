@@ -478,6 +478,7 @@ std::vector<std::string> parse_nonpositional_args(Context<E> &ctx) {
     } else if (read_arg("-needed_framework")) {
       remaining.push_back("-needed_framework");
       remaining.push_back(std::string(arg));
+    } else if (read_flag("-no_compact_unwind")) {
     } else if (read_flag("-no_deduplicate")) {
     } else if (read_flag("-no_function_starts")) {
       ctx.arg.function_starts = false;
@@ -485,6 +486,7 @@ std::vector<std::string> parse_nonpositional_args(Context<E> &ctx) {
       ctx.arg.implicit_dylibs = false;
     } else if (read_flag("-no_uuid")) {
       ctx.arg.uuid = UUID_NONE;
+    } else if (read_flag("-no_warn_duplicate_libraries")) {
     } else if (read_arg("-o")) {
       ctx.arg.output = arg;
     } else if (read_arg("-objc_abi_version")) {
