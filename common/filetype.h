@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.h"
-#include "../elf/elf.h"
 
 namespace mold {
 
@@ -30,108 +29,12 @@ bool is_text_file(MappedFile *mf) {
          isprint(data[2]) && isprint(data[3]);
 }
 
-template <typename E, typename Context, typename MappedFile>
-inline bool is_gcc_lto_obj(Context &ctx, MappedFile *mf) {
-  using namespace mold::elf;
-
-  const char *data = mf->get_contents().data();
-  ElfEhdr<E> &ehdr = *(ElfEhdr<E> *)data;
-  ElfShdr<E> *sh_begin = (ElfShdr<E> *)(data + ehdr.e_shoff);
-  std::span<ElfShdr<E>> shdrs{(ElfShdr<E> *)(data + ehdr.e_shoff), ehdr.e_shnum};
-
-  // e_shstrndx is a 16-bit field. If .shstrtab's section index is
-  // too large, the actual number is stored to sh_link field.
-  i64 shstrtab_idx = (ehdr.e_shstrndx == SHN_XINDEX)
-    ? sh_begin->sh_link : ehdr.e_shstrndx;
-
-  for (ElfShdr<E> &sec : shdrs) {
-    // GCC FAT LTO objects contain both regular ELF sections and GCC-
-    // specific LTO sections, so that they can be linked as LTO objects if
-    // the LTO linker plugin is available and falls back as regular
-    // objects otherwise. GCC FAT LTO object can be identified by the
-    // presence of `.gcc.lto_.symtab` section.
-    if (!ctx.arg.plugin.empty()) {
-      std::string_view name = data + shdrs[shstrtab_idx].sh_offset + sec.sh_name;
-      if (name.starts_with(".gnu.lto_.symtab."))
-      return true;
-    }
-
-    if (sec.sh_type != SHT_SYMTAB)
-      continue;
-
-    // GCC non-FAT LTO object contains only sections symbols followed by
-    // a common symbol whose name is `__gnu_lto_slim` (or `__gnu_lto_v1`
-    // for older GCC releases).
-    std::span<ElfSym<E>> elf_syms{(ElfSym<E> *)(data + sec.sh_offset),
-                                  (size_t)sec.sh_size / sizeof(ElfSym<E>)};
-
-    auto skip = [](u8 type) {
-      return type == STT_NOTYPE || type == STT_FILE || type == STT_SECTION;
-    };
-
-    i64 i = 1;
-    while (i < elf_syms.size() && skip(elf_syms[i].st_type))
-      i++;
-
-    if (i < elf_syms.size() && elf_syms[i].st_shndx == SHN_COMMON) {
-      std::string_view name =
-        data + shdrs[sec.sh_link].sh_offset + elf_syms[i].st_name;
-      if (name.starts_with("__gnu_lto_"))
-        return true;
-    }
-    break;
-  }
-
-  return false;
-}
-
 template <typename Context, typename MappedFile>
 FileType get_file_type(Context &ctx, MappedFile *mf) {
-  using namespace elf;
-
   std::string_view data = mf->get_contents();
 
   if (data.empty())
     return FileType::EMPTY;
-
-  if (data.starts_with("\177ELF")) {
-    u8 byte_order = ((ElfEhdr<I386> *)data.data())->e_ident[EI_DATA];
-
-    if (byte_order == ELFDATA2LSB) {
-      auto &ehdr = *(ElfEhdr<I386> *)data.data();
-
-      if (ehdr.e_type == ET_REL) {
-        if (ehdr.e_ident[EI_CLASS] == ELFCLASS32) {
-          if (is_gcc_lto_obj<I386>(ctx, mf))
-            return FileType::GCC_LTO_OBJ;
-        } else {
-          if (is_gcc_lto_obj<X86_64>(ctx, mf))
-            return FileType::GCC_LTO_OBJ;
-        }
-        return FileType::ELF_OBJ;
-      }
-
-      if (ehdr.e_type == ET_DYN)
-        return FileType::ELF_DSO;
-    } else {
-      auto &ehdr = *(ElfEhdr<M68K> *)data.data();
-
-      if (ehdr.e_type == ET_REL) {
-        if (ehdr.e_ident[EI_CLASS] == ELFCLASS32) {
-          if (is_gcc_lto_obj<M68K>(ctx, mf))
-            return FileType::GCC_LTO_OBJ;
-        } else {
-          if (is_gcc_lto_obj<SPARC64>(ctx, mf))
-            return FileType::GCC_LTO_OBJ;
-        }
-        return FileType::ELF_OBJ;
-      }
-
-      if (ehdr.e_type == ET_DYN)
-        return FileType::ELF_DSO;
-    }
-    return FileType::UNKNOWN;
-  }
 
   if (data.starts_with("\xcf\xfa\xed\xfe")) {
     switch (*(ul32 *)(data.data() + 12)) {

@@ -288,29 +288,6 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # As a workaround, we create a .cc file for each target and spawn many
 # compiler instances. This is hacky but greatly reduces compile time
 # on a multicore machine.
-list(APPEND MOLD_ELF_TARGETS
-  X86_64 I386 ARM64 ARM32 RV32LE RV32BE RV64LE RV64BE
-  PPC32 PPC64V1 PPC64V2 S390X SPARC64 M68K SH4 ALPHA)
-
-list(APPEND MOLD_ELF_TEMPLATE_FILES
-  elf/cmdline.cc
-  elf/dwarf.cc
-  elf/gc-sections.cc
-  elf/icf.cc
-  elf/input-files.cc
-  elf/input-sections.cc
-  elf/linker-script.cc
-  elf/lto.cc
-  elf/main.cc
-  elf/mapfile.cc
-  elf/output-chunks.cc
-  elf/passes.cc
-  elf/relocatable.cc
-  elf/subprocess.cc
-  elf/thunks.cc
-  elf/tls.cc
-  )
-
 list(APPEND MOLD_MACHO_TARGETS X86_64 ARM64 ARM64_32)
 
 list(APPEND MOLD_MACHO_TEMPLATE_FILES
@@ -336,12 +313,6 @@ function(mold_instantiate_templates SOURCE TARGET)
   target_sources(mold PRIVATE ${PATH})
 endfunction()
 
-foreach (SOURCE IN LISTS MOLD_ELF_TEMPLATE_FILES)
-  foreach(TARGET IN LISTS MOLD_ELF_TARGETS)
-    mold_instantiate_templates(${SOURCE} ${TARGET})
-  endforeach()
-endforeach()
-
 if(MOLD_IS_SOLD)
   foreach (SOURCE IN LISTS MOLD_MACHO_TEMPLATE_FILES)
     foreach(TARGET IN LISTS MOLD_MACHO_TARGETS)
@@ -362,20 +333,6 @@ target_sources(mold PRIVATE
   common/perf.cc
   common/tar.cc
   common/uuid.cc
-  elf/arch-alpha.cc
-  elf/arch-arm32.cc
-  elf/arch-arm64.cc
-  elf/arch-i386.cc
-  elf/arch-m68k.cc
-  elf/arch-ppc32.cc
-  elf/arch-ppc64v1.cc
-  elf/arch-ppc64v2.cc
-  elf/arch-riscv.cc
-  elf/arch-s390x.cc
-  elf/arch-sh4.cc
-  elf/arch-sparc64.cc
-  elf/arch-x86-64.cc
-  elf/elf.cc
   git-hash.cc
   third-party/rust-demangle/rust-demangle.c
   )
@@ -413,8 +370,6 @@ if(BUILD_TESTING)
     if(MOLD_IS_SOLD)
       add_subdirectory(test/macho)
     endif()
-  elseif(${UNIX})
-    add_subdirectory(test/elf)
   endif()
 endif()
 

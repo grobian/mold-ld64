@@ -146,11 +146,5 @@ i64 get_default_thread_count() {
 int main(int argc, char **argv) {
   mold::mold_version = mold::get_mold_version();
 
-#if MOLD_IS_SOLD
-  std::string cmd = mold::filepath(argv[0]).filename().string();
-  if (cmd == "ld64" || cmd.starts_with("ld64."))
-    return mold::macho::main(argc, argv);
-#endif
-
-  return mold::elf::main(argc, argv);
+  return mold::macho::main(argc, argv);
 }
