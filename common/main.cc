@@ -28,10 +28,13 @@ int main(int argc, char **argv);
 }
 
 static std::string get_mold_version() {
-  std::string name = MOLD_IS_SOLD ? "mold (sold) " : "mold ";
+  std::string banner = "@(#)PROGRAM:ld64 PROJECT:ld-1053.12\n";  // XC 15.3
+  std::string compat = "compatible with Apple ld64";
+  std::string name   = "mold-ld64-";
+
   if (mold_git_hash.empty())
-    return name + MOLD_VERSION + " (compatible with GNU ld)";
-  return name + MOLD_VERSION + " (" + mold_git_hash + "; compatible with GNU ld)";
+    return banner + name + MOLD_VERSION + " (" + compat + ")";
+  return banner + name + MOLD_VERSION + " (" + mold_git_hash + "; " + compat + ")";
 }
 
 void cleanup() {
