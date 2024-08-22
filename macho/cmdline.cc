@@ -77,7 +77,7 @@ Options:
   -headerpad <SIZE>           Allocate the size of padding after load commands
   -headerpad_max_install_names
                               Allocate MAXPATHLEN byte padding after load commands
-  -help                       Report usage information
+  -help  --help               Report usage information
   -hidden-l<LIB>
   -ignore_optimization_hints  Do not rewrite instructions as optimization (default)
     -enable_optimization_hints
@@ -562,7 +562,7 @@ std::vector<std::string> parse_nonpositional_args(Context<E> &ctx) {
           Fatal(ctx) << "-unexported_symbols_list: " << arg
                      << ": invalid glob pattern: " << pat;
     } else if (read_flag("-v")) {
-      SyncOut(ctx) << mold_version;
+      SyncOut(ctx, &std::cerr) << mold_version;
       version_shown = true;
     } else if (read_flag("-w")) {
       ctx.arg.suppress_warnings = true;
@@ -578,7 +578,7 @@ std::vector<std::string> parse_nonpositional_args(Context<E> &ctx) {
     } else if (read_flag("--icf=none")) {
     } else {
       if (args[i][0] == '-')
-        Fatal(ctx) << "unknown command line option: " << args[i];
+        Fatal(ctx) << "ld: unknown option: " << args[i];
       remaining.push_back(std::string(args[i]));
       i++;
     }
