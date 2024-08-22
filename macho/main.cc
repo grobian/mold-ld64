@@ -170,10 +170,10 @@ static void compute_import_export(Context<E> &ctx) {
   // Some symbols are referenced only by linker-synthesized sections.
   // We need to handle such symbols too.
   auto import = [&](Symbol<E> &sym) {
-    if (!sym.file)
-      Error(ctx) << "undefined symbol: " << sym;
-
-    if (sym.file->is_dylib) {
+    if (!sym.file) {
+      if (ctx.arg.undefined_error)
+        Error(ctx) << "undefined symbol: " << sym;
+    } else if (sym.file->is_dylib) {
       sym.is_imported = true;
       sym.flags |= NEEDS_GOT;
     }
@@ -201,8 +201,10 @@ static void create_internal_file(Context<E> &ctx) {
     obj->syms.push_back(sym);
   };
 
-  add(ctx.__dyld_private);
-  add(ctx.___dso_handle);
+  if (ctx.output_type != MH_OBJECT) {
+    add(ctx.__dyld_private);
+    add(ctx.___dso_handle);
+  }
 
   switch (ctx.output_type) {
   case MH_EXECUTE: {
@@ -217,6 +219,8 @@ static void create_internal_file(Context<E> &ctx) {
     break;
   case MH_BUNDLE:
     add(ctx.__mh_bundle_header);
+    break;
+  case MH_OBJECT:
     break;
   default:
     unreachable();
@@ -749,6 +753,26 @@ static void scan_relocations(Context<E> &ctx) {
 }
 
 template <typename E>
+static void remove_non_object_sections(Context<E> &ctx) {
+  Timer t(ctx, "remove_non_object_sections");
+
+  std::erase_if(ctx.segments, [](std::unique_ptr<OutputSegment<E>> &seg) {
+    auto segname = seg->cmd.get_segname();
+    return !(segname == "__TEXT" ||
+             segname == "__LINKEDIT");
+  });
+  for (std::unique_ptr<OutputSegment<E>> &seg : ctx.segments) {
+    if (seg->cmd.get_segname() == "__TEXT")
+      std::erase_if(seg->chunks, [](Chunk<E> *sec) {
+        auto sectname = sec->hdr.get_sectname();
+        return !(sectname == "__mach_header" ||
+                 sectname == "__text" ||
+                 sectname == "__eh_frame");
+      });
+  }
+}
+
+template <typename E>
 static i64 assign_offsets(Context<E> &ctx) {
   Timer t(ctx, "assign_offsets");
 
@@ -1185,7 +1209,7 @@ static void read_input_files(Context<E> &ctx, std::span<std::string> args) {
 template <typename E>
 void print_dependencies(Context<E> &ctx) {
   SyncOut(ctx) <<
-R"(# This is an output of the sold linker's --print-dependencies option.
+R"(# This is an output of the mold linker's --print-dependencies option.
 #
 # Each line consists of 4 fields, <file1>, <file2>, <symbol-type> and
 # <symbol>, separated by tab characters. It indicates that <file1> depends
@@ -1360,6 +1384,9 @@ int macho_main(int argc, char **argv) {
   compute_import_export(ctx);
 
   scan_relocations(ctx);
+  
+  if (ctx.output_type == MH_OBJECT)
+    remove_non_object_sections(ctx);
 
   i64 output_size = assign_offsets(ctx);
   ctx.tls_begin = get_tls_begin(ctx);
@@ -1378,6 +1405,8 @@ int macho_main(int argc, char **argv) {
     ctx.code_sig->write_signature(ctx);
   else if (ctx.arg.uuid == UUID_HASH)
     compute_uuid(ctx);
+  else
+    ctx.mach_hdr.copy_buf(ctx);
 
   ctx.output_file->close(ctx);
 

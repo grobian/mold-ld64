@@ -301,7 +301,7 @@ static std::vector<std::vector<u8>> create_load_commands(Context<E> &ctx) {
     vec.push_back(create_dyld_chained_fixups(ctx));
     if (ctx.export_.hdr.size)
       vec.push_back(create_dyld_exports_trie(ctx));
-  } else {
+  } else if (ctx.output_type != MH_OBJECT) {
     vec.push_back(create_dyld_info_only_cmd(ctx));
   }
 
@@ -311,24 +311,26 @@ static std::vector<std::vector<u8>> create_load_commands(Context<E> &ctx) {
   if (ctx.arg.uuid != UUID_NONE)
     vec.push_back(create_uuid_cmd(ctx));
 
-  vec.push_back(create_build_version_cmd(ctx));
-  vec.push_back(create_source_version_cmd(ctx));
+  if (ctx.output_type != MH_OBJECT) {
+    vec.push_back(create_build_version_cmd(ctx));
+    vec.push_back(create_source_version_cmd(ctx));
 
-  if (ctx.arg.function_starts)
-    vec.push_back(create_function_starts_cmd(ctx));
+    if (ctx.arg.function_starts && ctx.function_starts)
+      vec.push_back(create_function_starts_cmd(ctx));
 
-  for (DylibFile<E> *file : ctx.dylibs)
-    if (file->dylib_idx != BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE)
-      vec.push_back(create_load_dylib_cmd(ctx, *file));
+    for (DylibFile<E> *file : ctx.dylibs)
+      if (file->dylib_idx != BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE)
+        vec.push_back(create_load_dylib_cmd(ctx, *file));
 
-  for (std::string_view rpath : ctx.arg.rpaths)
-    vec.push_back(create_rpath_cmd(ctx, rpath));
+    for (std::string_view rpath : ctx.arg.rpaths)
+      vec.push_back(create_rpath_cmd(ctx, rpath));
 
-  if (ctx.data_in_code)
-    vec.push_back(create_data_in_code_cmd(ctx));
+    if (ctx.data_in_code)
+      vec.push_back(create_data_in_code_cmd(ctx));
 
-  if (!ctx.arg.umbrella.empty())
-    vec.push_back(create_sub_framework_cmd(ctx));
+    if (!ctx.arg.umbrella.empty())
+      vec.push_back(create_sub_framework_cmd(ctx));
+  }
 
   switch (ctx.output_type) {
   case MH_EXECUTE:
@@ -339,6 +341,7 @@ static std::vector<std::vector<u8>> create_load_commands(Context<E> &ctx) {
     vec.push_back(create_id_dylib_cmd(ctx));
     break;
   case MH_BUNDLE:
+  case MH_OBJECT:
     break;
   default:
     unreachable();
@@ -385,7 +388,10 @@ void OutputMachHeader<E>::copy_buf(Context<E> &ctx) {
   mhdr.filetype = ctx.output_type;
   mhdr.ncmds = cmds.size();
   mhdr.sizeofcmds = flatten(cmds).size();
-  mhdr.flags = MH_TWOLEVEL | MH_NOUNDEFS | MH_DYLDLINK | MH_PIE;
+  if (ctx.output_type != MH_OBJECT)
+    mhdr.flags = MH_TWOLEVEL | MH_NOUNDEFS | MH_DYLDLINK | MH_PIE;
+  else
+    mhdr.flags = MH_SUBSECTIONS_VIA_SYMBOLS;
 
   if (has_tlv(ctx))
     mhdr.flags |= MH_HAS_TLV_DESCRIPTORS;
@@ -2216,7 +2222,8 @@ void CieRecord<E>::copy_to(Context<E> &ctx) {
 
   if (personality) {
     if (!personality->file) {
-      Error(ctx) << "undefined symbol: " << *file << ": " << *personality;
+      if (ctx.output_type != MH_OBJECT)
+        Error(ctx) << "undefined symbol: " << *file << ": " << *personality;
       return;
     }
 

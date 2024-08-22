@@ -1324,7 +1324,7 @@ void ObjectFile<E>::populate_symtab(Context<E> &ctx) {
     stab[stab_idx].sect = 1;
   }
 
-  // Copy symbols from input symtabs to the output sytmab
+  // Copy symbols from input symtabs to the output symtab
   for (i64 i = 0; i < this->syms.size(); i++) {
     Symbol<E> *sym = this->syms[i];
     if (!sym || sym->file != this || sym->output_symtab_idx == -1)
@@ -1332,7 +1332,8 @@ void ObjectFile<E>::populate_symtab(Context<E> &ctx) {
 
     MachSym<E> &msym = buf[sym->output_symtab_idx];
     msym.stroff = pos[i];
-    msym.is_extern = (sym->visibility == SCOPE_GLOBAL);
+    msym.is_extern = (sym->visibility == SCOPE_GLOBAL ||
+                      ctx.output_type == MH_OBJECT);
 
     if (sym->subsec && sym->subsec->is_alive) {
       msym.type = N_SECT;
@@ -1350,6 +1351,7 @@ void ObjectFile<E>::populate_symtab(Context<E> &ctx) {
     } else if (sym->is_imported) {
       msym.type = N_UNDF;
       msym.sect = N_UNDF;
+      msym.desc = REFERENCE_FLAG_UNDEFINED_NON_LAZY;
     } else {
       msym.type = N_ABS;
       msym.sect = N_ABS;
@@ -1669,7 +1671,7 @@ void DylibFile<E>::populate_symtab(Context<E> &ctx) {
   u8 *strtab = ctx.buf + ctx.strtab.hdr.offset;
   i64 stroff = this->strtab_offset;
 
-  // Copy symbols from input symtabs to the output sytmab
+  // Copy symbols from input symtabs to the output symtab
   for (i64 i = 0; i < this->syms.size(); i++) {
     Symbol<E> *sym = this->syms[i];
     if (!sym || sym->file != this || sym->output_symtab_idx == -1)

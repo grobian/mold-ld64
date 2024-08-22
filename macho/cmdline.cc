@@ -15,7 +15,7 @@
 namespace mold::macho {
 
 static const char helpmsg[] = R"(
-Sold-specific options:
+mold-specific options:
   --print-dependencies        Print input file dependency information
 
 lld-compatible options:
@@ -104,6 +104,7 @@ Options:
   -pagezero_size <SIZE>       Specify the size of the __PAGEZERO segment
   -platform_version <PLATFORM> <MIN_VERSION> <SDK_VERSION>
                               Set platform, platform version and SDK version
+  -r                          Merge object files into single MH_OBJECT file
   -random_uuid                Generate a random LC_UUID load command
   -reexport-l<LIB>            Search for a given library and reexport it
   -reexport_library <FILE>    Reexport a given library
@@ -461,6 +462,7 @@ std::vector<std::string> parse_nonpositional_args(Context<E> &ctx) {
       init_offsets = true;
     } else if (read_flag("-no_init_offsets")) {
       init_offsets = false;
+    } else if (read_flag("-keep_private_externs")) {
     } else if (read_arg("-install_name") || read_arg("-dylib_install_name")) {
       ctx.arg.install_name = arg;
     } else if (read_joined("-l")) {
@@ -508,6 +510,13 @@ std::vector<std::string> parse_nonpositional_args(Context<E> &ctx) {
       ctx.arg.quick_exit = true;
     } else if (read_flag("-no_quick_exit")) {
       ctx.arg.quick_exit = false;
+    } else if (read_flag("-r")) {
+      ctx.output_type = MH_OBJECT;
+      ctx.arg.uuid = UUID_NONE;
+      ctx.arg.dead_strip = false;
+      ctx.arg.adhoc_codesign = false;
+      ctx.arg.undefined_error = false;
+      ctx.arg.flat_namespace = true;
     } else if (read_flag("-random_uuid")) {
       ctx.arg.uuid = UUID_RANDOM;
     } else if (read_joined("-reexport-l")) {

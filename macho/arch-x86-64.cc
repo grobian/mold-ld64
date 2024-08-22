@@ -189,7 +189,7 @@ void Subsection<E>::apply_reloc(Context<E> &ctx, u8 *buf) {
   for (i64 i = 0; i < rels.size(); i++) {
     Relocation<E> &r = rels[i];
 
-    if (r.sym() && !r.sym()->file) {
+    if (r.sym() && !r.sym()->file && ctx.output_type != MH_OBJECT) {
       Error(ctx) << "undefined symbol: " << isec->file << ": " << *r.sym();
       continue;
     }
