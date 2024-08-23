@@ -2282,7 +2282,7 @@ void FdeRecord<E>::copy_to(Context<E> &ctx) {
   u64 output_addr = ctx.eh_frame.hdr.addr + output_offset;
   *(ul64 *)(buf + 8) = (i32)(subsec->get_addr(ctx) - output_addr - 8);
 
-  if (lsda) {
+  if (lsda && !lsda->is_replaced) {
     u8 *aug = buf + 24;
     read_uleb(aug); // skip Augmentation Data Length
 
