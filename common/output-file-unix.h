@@ -58,7 +58,8 @@ public:
     this->buf = (u8 *)mmap(nullptr, filesize, PROT_READ | PROT_WRITE,
                            MAP_SHARED, fd, 0);
     if (this->buf == MAP_FAILED)
-      Fatal(ctx) << path << ": mmap failed: " << errno_string();
+      Fatal(ctx) << path << ": mmap(" << filesize <<
+        ", READ|WRITE, SHARED) failed: " << errno_string();
     ::close(fd);
 
     mold::output_buffer_start = this->buf;
